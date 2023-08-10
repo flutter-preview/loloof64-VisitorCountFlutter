@@ -1,11 +1,12 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:isar/isar.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:simple_visit_counter/model/bdd/user.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:simple_visit_counter/db/database.dart';
+import 'package:simple_visit_counter/web.dart';
+
+final databaseProvider = StateProvider((ref) => constructDb());
 
 void main() {
-  runApp(const MyApp());
+  runApp(const ProviderScope(child: MyApp()));
 }
 
 class MyApp extends StatelessWidget {
@@ -24,43 +25,40 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class MyHomePage extends StatefulWidget {
+class MyHomePage extends ConsumerStatefulWidget {
   const MyHomePage({super.key, required this.title});
 
   final String title;
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  MyHomePageState createState() => MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class MyHomePageState extends ConsumerState<MyHomePage> {
   int? _visitorsCount;
 
   @override
   void initState() {
     super.initState();
-    _computeVisitor().then((_) => ());
+    _addVisitorToDb().then((value) => null);
+    _computeVisitor().then((value) => null);
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
+
+  Future<void> _addVisitorToDb() async {
+    final database = ref.read(databaseProvider.notifier).state;
+    await database.into(database.users).insert(UsersCompanion.insert());
   }
 
   Future<void> _computeVisitor() async {
-    var path = "/assets/db";
-    if (!kIsWeb) {
-      var appDocDir = await getApplicationDocumentsDirectory();
-      path = appDocDir.path;
-    }
-
-    final isar = await Isar.open(
-      [UserSchema],
-      directory: path,
-    );
-
-    await isar.writeTxn(() async {
-      await isar.users.put(User());
-    });
-
-    final count = await isar.users.count();
+    final database = ref.read(databaseProvider);
+    final visitors = await database.select(database.users).get();
     setState(() {
-      _visitorsCount = count;
+      _visitorsCount = visitors.length;
     });
   }
 
