@@ -1,3 +1,3 @@
-# simple_visit_counter
+# simple visit counter
 
 A simple visit counter
